@@ -1,0 +1,61 @@
+import {
+    time,
+    loadFixture,
+} from "@nomicfoundation/hardhat-network-helpers";
+import { expect } from "chai";
+import hre from "hardhat";
+import { getAddress, parseGwei } from "viem";
+
+describe("Lock", function () {
+    async function deployOneYearLockFixture() {
+        const ONE_YEAR_in_SECS = 365 * 24 * 60 * 60;
+        const unlockTime = BigInt((await time.latest()) + ONE_YEAR_in_SECS);
+        const lockedAmount = parseGwei("1");
+        console.log("HRE VIEM:", hre.viem);
+
+        const [owner, otherAccount] = await hre.viem.getWalletClients();
+
+        const lock = await hre.viem.deployContract("Lock", [unlockTime], {
+            value: lockedAmount,
+        });
+
+        const publicClient = await hre.viem.getPublicClient();
+
+        return {
+            lock,
+            unlockTime,
+            lockedAmount,
+            owner,
+            otherAccount,
+            publicClient,
+        };
+    }
+
+    describe("Deployment", function () {
+        it("Should set the right unlockTime", async function () {
+            const { lock, unlockTime } = await loadFixture(deployOneYearLockFixture);
+
+            expect(await lock.read.unlockTime()).to.equal(unlockTime);
+        });
+
+        it("Should set the right owner", async function () {
+            const { lock, owner } = await loadFixture(deployOneYearLockFixture);
+
+            expect(await lock.read.owner()).to.equal(
+                getAddress(owner.account.address)
+            );
+        });
+
+        it("Should receive and store the funds to lock", async function () {
+            const { lock, lockedAmount, publicClient } = await loadFixture(
+                deployOneYearLockFixture
+            );
+
+            const balance = await publicClient.getBalance({
+                address: lock.address,
+            });
+
+            expect(balance).to.equal(lockedAmount);
+        });
+    });
+});
