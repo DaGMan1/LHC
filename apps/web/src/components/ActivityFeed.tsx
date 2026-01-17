@@ -1,9 +1,9 @@
 'use client'
 
-import { useIntelFeed } from '@/hooks/useIntelFeed'
+import { useIntelContext } from './IntelProvider'
 
 export function ActivityFeed() {
-    const { messages } = useIntelFeed()
+    const { messages } = useIntelContext()
 
     return (
         <div className="flex flex-col h-full bg-card rounded-[2rem] border border-card-border overflow-hidden">
@@ -23,7 +23,7 @@ export function ActivityFeed() {
                     <div key={i} className="flex gap-4 group animate-in fade-in slide-in-from-left-4 duration-500">
                         <span className="text-zinc-600 font-bold">{act.time}</span>
                         <span className={`font-black uppercase tracking-widest ${act.type === 'success' ? 'text-accent' :
-                                act.type === 'warning' ? 'text-yellow-500' : 'text-zinc-400'
+                            act.type === 'warning' ? 'text-yellow-500' : 'text-zinc-400'
                             }`}>
                             {act.msg}
                         </span>

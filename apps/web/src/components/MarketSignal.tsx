@@ -1,9 +1,9 @@
 'use client'
 
-import { useIntelFeed } from '@/hooks/useIntelFeed'
+import { useIntelContext } from './IntelProvider'
 
 export function MarketSignal() {
-    const { latestPriority } = useIntelFeed()
+    const { latestPriority } = useIntelContext()
 
     return (
         <div className="w-full p-6 bg-card rounded-[2rem] border border-card-border flex items-center justify-between group overflow-hidden relative">

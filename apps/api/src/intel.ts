@@ -11,12 +11,14 @@ export interface IntelMessage {
 }
 
 const mockIntels: string[] = [
-    'AERODRONE POOL DEPTH INCREASE',
-    'UNISWAP V3 SCAN COMPLETE',
-    'ARBITRAGE OPPORTUNITY DETECTED',
-    'GAS PRICE DROPPED TO 0.1 GWEI',
-    'MEV VECTOR IDENTIFIED ON BASE',
-    'LIQUIDITY SHIFT: WETH/USDC',
+    'AERODRONE POOL DEPTH INCREASE +1.5%',
+    'UNISWAP V3 SCAN COMPLETE: NO ARB FOUND',
+    'ARBITRAGE OPPORTUNITY: ETH/USDC 1.2%',
+    'GAS PRICE DROPPED TO 0.05 GWEI',
+    'MEV VECTOR IDENTIFIED ON BASE - SCANNING...',
+    'LIQUIDITY SHIFT: WETH/USDC DEPTH -5%',
+    'NEW STRATEGY LOADED: CEX-PERP DELTA',
+    'BASE NETWORK CONGESTION: LOW',
 ];
 
 /**
@@ -28,19 +30,21 @@ const mockIntels: string[] = [
 export function startMarketIntelEngine() {
     console.log('--- Market Intel Engine Started ---');
 
-    // Scan every 30 seconds as per PRD
+    // Scan every 5 seconds for a louder demo/test
     setInterval(() => {
         const timestamp = new Date().toLocaleTimeString('en-GB', { hour12: false });
         const randomIntel = mockIntels[Math.floor(Math.random() * mockIntels.length)];
-        const isPriority = Math.random() > 0.8;
+
+        // Priority logic: Arbitrage opportunities are always high priority
+        const isPriority = randomIntel.includes('ARBITRAGE') || randomIntel.includes('MEV');
 
         const message: IntelMessage = {
             time: timestamp,
             msg: randomIntel,
-            type: isPriority ? 'warning' : 'info',
+            type: randomIntel.includes('OPPORTUNITY') ? 'success' : (isPriority ? 'warning' : 'info'),
             priority: isPriority ? 'high' : 'low',
         };
 
         intelEmitter.emit('new_intel', message);
-    }, 15000); // Faster simulation during dev (15s instead of 30s)
+    }, 5000);
 }
