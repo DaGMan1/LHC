@@ -3,13 +3,18 @@
 import { useReadContract, useWriteContract, useAccount } from 'wagmi'
 import { LOCK_ABI } from '@/config/abi'
 import { formatEther } from 'viem'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const LOCK_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3' // Default Hardhat local address
 
 export function LockInteraction() {
     const account = useAccount()
     const [isPending, setIsPending] = useState(false)
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
 
     const { data: unlockTime } = useReadContract({
         address: LOCK_ADDRESS,
@@ -50,7 +55,7 @@ export function LockInteraction() {
                 <div className="p-4 bg-zinc-800 rounded-xl">
                     <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Unlock Time</p>
                     <p className="text-lg text-zinc-100 font-mono">
-                        {unlockTime ? new Date(Number(unlockTime) * 1000).toLocaleString() : 'Loading...'}
+                        {mounted && unlockTime ? new Date(Number(unlockTime) * 1000).toLocaleString() : 'Loading...'}
                     </p>
                 </div>
 
