@@ -5,12 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npx hardhat compile"
+    "build": "npx hardhat compile",
+    "dev": "npx hardhat node"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition-viem": "^3.0.6",
     "@nomicfoundation/hardhat-network-helpers": "^3.0.3",
@@ -22,7 +23,7 @@
     "@types/mocha": "^10.0.10",
     "chai": "^4.5.0",
     "dotenv": "^16.4.5",
-    "hardhat": "^3.1.4",
+    "hardhat": "^2.22.3",
     "hardhat-gas-reporter": "^1.0.10",
     "solidity-coverage": "^0.8.17",
     "viem": "^2.21.0"
