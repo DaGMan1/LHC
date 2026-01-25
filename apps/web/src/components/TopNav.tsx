@@ -1,8 +1,9 @@
 'use client'
 
-import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi'
+import { useAccount, useConnect, useDisconnect, useBalance, useChainId } from 'wagmi'
 import { formatUnits } from 'viem'
 import { useState, useEffect } from 'react'
+import { base } from 'wagmi/chains'
 
 export function TopNav() {
     const [mounted, setMounted] = useState(false)
@@ -10,13 +11,27 @@ export function TopNav() {
     const { address, isConnected } = useAccount()
     const { connectors, connect, error, isPending, reset } = useConnect()
     const { disconnect } = useDisconnect()
-    const { data: balance } = useBalance({ address })
+    const chainId = useChainId()
+    // Fetch balance from Base chain (where the bot operates)
+    const { data: balance, refetch: refetchBalance } = useBalance({
+        address,
+        chainId: base.id,
+    })
 
     useEffect(() => {
         setMounted(true)
         // Clear any stale errors on mount
         reset()
     }, [reset])
+
+    // Refresh balance periodically
+    useEffect(() => {
+        if (!address) return
+        const interval = setInterval(() => {
+            refetchBalance()
+        }, 15000) // Refresh every 15 seconds
+        return () => clearInterval(interval)
+    }, [address, refetchBalance])
 
     const handleConnect = () => {
         setHasAttemptedConnect(true)
