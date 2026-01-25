@@ -9,9 +9,20 @@ export interface IntelMessage {
     priority: 'low' | 'high';
 }
 
+export interface BotState {
+    id: string;
+    name: string;
+    status: 'IDLE' | 'RUNNING' | 'PAUSED' | 'ERROR';
+    pnl: number;
+    allocated: number;
+    lastUpdate: string;
+    logs: string[];
+}
+
 interface IntelContextType {
     messages: IntelMessage[];
     latestPriority: IntelMessage | null;
+    botStates: BotState[];
 }
 
 const IntelContext = createContext<IntelContextType | undefined>(undefined)
@@ -19,21 +30,27 @@ const IntelContext = createContext<IntelContextType | undefined>(undefined)
 export function IntelProvider({ children }: { children: ReactNode }) {
     const [messages, setMessages] = useState<IntelMessage[]>([])
     const [latestPriority, setLatestPriority] = useState<IntelMessage | null>(null)
+    const [botStates, setBotStates] = useState<BotState[]>([])
 
     useEffect(() => {
         const eventSource = new EventSource('http://localhost:3001/api/intel')
 
         eventSource.onmessage = (event) => {
-            const data: IntelMessage = JSON.parse(event.data)
+            const payload = JSON.parse(event.data)
 
-            setMessages((prev) => [data, ...prev].slice(0, 50))
+            if (payload.type === 'intel') {
+                const data: IntelMessage = payload.data
+                setMessages((prev) => [data, ...prev].slice(0, 50))
 
-            if (data.priority === 'high') {
-                setLatestPriority(data)
-                // Auto-clear priority message after 10 seconds to keep the terminal feeling fresh
-                setTimeout(() => {
-                    setLatestPriority(prev => prev === data ? null : prev)
-                }, 10000)
+                if (data.priority === 'high') {
+                    setLatestPriority(data)
+                    // Auto-clear priority message after 10 seconds to keep the terminal feeling fresh
+                    setTimeout(() => {
+                        setLatestPriority(prev => prev === data ? null : prev)
+                    }, 10000)
+                }
+            } else if (payload.type === 'bots') {
+                setBotStates(payload.data)
             }
         }
 
@@ -48,7 +65,7 @@ export function IntelProvider({ children }: { children: ReactNode }) {
     }, [])
 
     return (
-        <IntelContext.Provider value={{ messages, latestPriority }}>
+        <IntelContext.Provider value={{ messages, latestPriority, botStates }}>
             {children}
         </IntelContext.Provider>
     )

@@ -4,9 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "npx hardhat test",
+    "test:fork": "npx hardhat test --network hardhat",
     "build": "npx hardhat compile",
-    "dev": "npx hardhat node"
+    "dev": "npx hardhat node",
+    "deploy:local": "npx hardhat run scripts/deploy-flasharb.ts --network hardhat",
+    "deploy:base-sepolia": "npx hardhat run scripts/deploy-flasharb.ts --network baseSepolia",
+    "deploy:base": "npx hardhat run scripts/deploy-flasharb.ts --network base",
+    "verify": "npx hardhat verify --network base"
   },
   "keywords": [],
   "author": "",
@@ -27,5 +32,10 @@
     "hardhat-gas-reporter": "^1.0.10",
     "solidity-coverage": "^0.8.17",
     "viem": "^2.21.0"
+  },
+  "dependencies": {
+    "@aave/core-v3": "^1.19.3",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@uniswap/v3-periphery": "^1.4.4"
   }
 }

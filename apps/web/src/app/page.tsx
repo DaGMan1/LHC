@@ -3,6 +3,7 @@ import { StrategyCard } from "@/components/StrategyCard";
 import { MarketSignal } from "@/components/MarketSignal";
 import { BotInterface } from "@/components/BotInterface";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { ActivationPanel } from "@/components/ActivationPanel";
 
 export default function Home() {
   return (
@@ -20,26 +21,35 @@ export default function Home() {
           {/* Main Content Area */}
           <div className="xl:col-span-9 flex flex-col gap-8">
 
-            {/* Strategy Grid */}
+            {/* Top Row: Activation Panel + Strategy Info */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Main Activation - One Button to Rule Them All */}
+              <ActivationPanel />
+
+              {/* Flash Loan Strategy Info */}
+              <div className="md:col-span-2">
+                <StrategyCard
+                  id="flash-loan"
+                  title="Flash Loan Arbitrage"
+                  description="Scans Aerodrome and Uniswap V3 for price discrepancies on Base. Borrows capital via flash loan, executes atomic arbitrage, keeps the profit. Zero capital required - only gas fees (~$0.01-0.05 per trade)."
+                  icon={
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
+                      <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L13 16M17 20L21 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  }
+                />
+              </div>
+            </div>
+
+            {/* AI Signal Banner */}
+            <MarketSignal />
+
+            {/* Future Strategies (Coming Soon) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <StrategyCard
-                title="Flash Loan Arbitrage"
-                description="Monitors price discrepancies between Aerodrome and Uniswap V3 on Base."
-                status="IDLE"
-                pnl="$0.00"
-                allocated="$2,500"
-                icon={
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
-                    <path d="M7 16V4M7 4L3 8M7 4L11 8M17 8V20M17 20L13 16M17 20L21 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                }
-              />
-              <StrategyCard
+                id="cex-perp"
                 title="CEX-Perp Delta"
-                description="Statistical arbitrage between Coinbase/Binance spot and Hyperliquid perps."
-                status="IDLE"
-                pnl="$0.00"
-                allocated="$5,000"
+                description="Statistical arbitrage between Coinbase/Binance spot and Hyperliquid perps. (Coming Soon)"
                 icon={
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
                     <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -47,11 +57,9 @@ export default function Home() {
                 }
               />
               <StrategyCard
+                id="grid-bot"
                 title="Dynamic Grid"
-                description="Trend-filtered grid bot for WETH-USDC with dynamic volatility adjustments."
-                status="IDLE"
-                pnl="$0.00"
-                allocated="$1,500"
+                description="Trend-filtered grid bot for WETH-USDC with dynamic volatility adjustments. (Coming Soon)"
                 icon={
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
                     <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2" />
@@ -63,28 +71,21 @@ export default function Home() {
               />
             </div>
 
-            {/* AI Signal Banner */}
-            <MarketSignal />
-
-            {/* Lower Grid: Analytics & Bot Interface */}
+            {/* Lower Grid: Bot Interface */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 bg-card rounded-[2rem] border border-card-border p-8 min-h-[400px] flex flex-col gap-6 relative overflow-hidden group">
-                {/* Chart Placeholder styling */}
-                <div className="flex items-center justify-between relative z-10">
-                  <h3 className="text-lg font-black text-white uppercase italic tracking-tight">Cumulative PnL (Session)</h3>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-accent"></div>
-                    <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none">Live Delta</span>
+              {/* PnL Chart (placeholder) */}
+              <div className="lg:col-span-8">
+                <div className="bg-card rounded-[2rem] border border-card-border p-8 min-h-[200px] flex flex-col gap-6 relative overflow-hidden group">
+                  <div className="flex items-center justify-between relative z-10">
+                    <h3 className="text-lg font-black text-white uppercase italic tracking-tight">Cumulative PnL (Session)</h3>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-accent"></div>
+                      <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest leading-none">Live Delta</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex-1 flex flex-col items-center justify-center p-12 border border-dashed border-card-border rounded-3xl group-hover:bg-primary/5 transition-all">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 3V21H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M18 9L13 14L10 11L6 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 border border-dashed border-card-border rounded-3xl group-hover:bg-primary/5 transition-all">
+                    <p className="text-zinc-600 font-mono text-xs uppercase tracking-[0.2em]">Trades will appear here</p>
                   </div>
-                  <p className="text-zinc-600 font-mono text-xs uppercase tracking-[0.2em]">PNL Data Analytics Loadinging...</p>
                 </div>
               </div>
 

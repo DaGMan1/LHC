@@ -1,15 +1,19 @@
 import { http, createConfig } from 'wagmi'
-import { base, hardhat } from 'wagmi/chains'
+import { base, mainnet } from 'wagmi/chains'
 import { injected } from 'wagmi/connectors'
 
 export const config = createConfig({
-    chains: [base, hardhat],
+    chains: [base, mainnet],
     connectors: [
-        injected(),
+        // Use injected connector - works with MetaMask, Coinbase, etc.
+        injected({
+            shimDisconnect: true,
+        }),
     ],
     transports: {
-        [base.id]: http(),
-        [hardhat.id]: http(),
+        [base.id]: http('https://mainnet.base.org'),
+        [mainnet.id]: http(),
     },
+    ssr: true, // Enable SSR support for Next.js
 })
 
