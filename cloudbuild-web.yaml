@@ -1,5 +1,13 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', '${_IMAGE_NAME}', '-f', 'apps/web/Dockerfile', '.']
+  args:
+    - 'build'
+    - '-t'
+    - '${_IMAGE_NAME}'
+    - '-f'
+    - 'apps/web/Dockerfile'
+    - '--build-arg'
+    - 'NEXT_PUBLIC_API_URL=${_API_URL}'
+    - '.'
 images:
 - '${_IMAGE_NAME}'

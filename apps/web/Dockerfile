@@ -1,5 +1,10 @@
 FROM node:20-slim AS builder
 WORKDIR /app
+
+# Build arg for API URL - MUST be passed at build time for Next.js
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 COPY package*.json ./
 COPY turbo.json ./
 COPY apps/web/package*.json ./apps/web/
