@@ -60,6 +60,23 @@ export const FLASH_ARB_ABI = [
         outputs: [{ name: '', type: 'uint256' }],
     },
     {
+        name: 'setExecutor',
+        type: 'function',
+        stateMutability: 'nonpayable',
+        inputs: [
+            { name: '_executor', type: 'address' },
+            { name: '_allowed', type: 'bool' },
+        ],
+        outputs: [],
+    },
+    {
+        name: 'isExecutor',
+        type: 'function',
+        stateMutability: 'view',
+        inputs: [{ name: '_executor', type: 'address' }],
+        outputs: [{ name: '', type: 'bool' }],
+    },
+    {
         name: 'ArbitrageExecuted',
         type: 'event',
         inputs: [
