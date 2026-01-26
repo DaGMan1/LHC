@@ -213,12 +213,50 @@ TENDERLY_ACCESS_KEY=...
 
 ---
 
-## Current Status (MVP)
+## Current Status
 
 - **Bots:** Dry-run mode with simulated signals
-- **Intel:** Mock market data (future: real Aerodrome/Uniswap polling)
-- **Contracts:** FlashArb.sol ready but not deployed to mainnet
-- **Deployment:** Docker + Cloud Run pipeline configured
+- **Intel:** Real-time SSE stream from API
+- **Contracts:** FlashArb.sol with executor role support
+- **Deployment:** Live on Google Cloud Run (project: `lhc-terminal-alpha-1768620729`)
+
+---
+
+## Cloud Run Deployment
+
+**Production URLs:**
+- Web: https://lhc-web-29418249188.us-central1.run.app
+- API: https://lhc-api-cky7mlzabq-uc.a.run.app
+
+**Deploy Command:**
+```bash
+./deploy.sh lhc-terminal-alpha-1768620729
+```
+
+**Bot Wallet (Executor):** `0x273fdD310c80e95B92eA60Bf12A4391Ca2C3f640`
+- Can trigger trades but CANNOT withdraw
+- Private key stored in Secret Manager as `lhc-bot-private-key`
+
+---
+
+## Contract Addresses (Base Mainnet)
+
+| Contract | Address |
+|----------|---------|
+| Aave PoolAddressesProvider | `0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D` |
+| Uniswap V3 SwapRouter | `0x2626664c2603336E57B271c5C0b26F421741e481` |
+| WETH | `0x4200000000000000000000000000000000000006` |
+| USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+
+---
+
+## Key Web Components
+
+| Component | Purpose |
+|-----------|---------|
+| `ActivationPanel.tsx` | One-click bot activation (deploy → authorize → go live) |
+| `useFlashArb.ts` | Hook for contract deployment and interaction |
+| `FlashArbBytecode.json` | Compiled ABI + bytecode for client-side deployment |
 
 ---
 
@@ -231,8 +269,11 @@ TENDERLY_ACCESS_KEY=...
 | Flash loan bot | `apps/api/src/bots/FlashLoanArb.ts` |
 | Intel engine | `apps/api/src/intel.ts` |
 | Web page | `apps/web/src/app/page.tsx` |
+| Activation UI | `apps/web/src/components/ActivationPanel.tsx` |
+| FlashArb hook | `apps/web/src/hooks/useFlashArb.ts` |
+| Contract ABI/bytecode | `apps/web/src/contracts/FlashArbBytecode.json` |
+| Base addresses | `apps/web/src/contracts/FlashArbABI.ts` |
 | Intel context | `apps/web/src/components/IntelProvider.tsx` |
-| Strategy card | `apps/web/src/components/StrategyCard.tsx` |
 | Wagmi config | `apps/web/src/config/wagmi.ts` |
 | FlashArb contract | `contracts/contracts/FlashArb.sol` |
-| Hardhat config | `contracts/hardhat.config.ts` |
+| Deploy script | `deploy.sh` |
