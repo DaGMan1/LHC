@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
+import { useAccount, usePublicClient, useWalletClient, useSwitchChain } from 'wagmi';
 import { encodeAbiParameters, parseAbiParameters, formatEther, parseEther } from 'viem';
+import { base } from 'wagmi/chains';
 import FlashArbContract from '../contracts/FlashArbBytecode.json';
 import { BASE_ADDRESSES } from '../contracts/FlashArbABI';
 
@@ -29,9 +30,11 @@ export interface ExecutionResult {
 }
 
 export function useFlashArb() {
-    const { address, isConnected } = useAccount();
-    const publicClient = usePublicClient();
-    const { data: walletClient } = useWalletClient();
+    const { address, isConnected, chainId } = useAccount();
+    // Explicitly use Base chain for all operations
+    const publicClient = usePublicClient({ chainId: base.id });
+    const { data: walletClient } = useWalletClient({ chainId: base.id });
+    const { switchChainAsync } = useSwitchChain();
 
     const [contractAddress, setContractAddress] = useState<`0x${string}` | null>(null);
     const [isDeploying, setIsDeploying] = useState(false);
@@ -98,11 +101,17 @@ export function useFlashArb() {
 
         setIsDeploying(true);
         try {
+            // Ensure we're on Base chain before deploying
+            if (chainId !== base.id) {
+                await switchChainAsync({ chainId: base.id });
+            }
+
             // Deploy with constructor args: Aave Pool Provider and Uniswap Router
             const hash = await walletClient.deployContract({
                 abi: FlashArbContract.abi,
                 bytecode: FlashArbContract.bytecode as `0x${string}`,
                 args: [BASE_ADDRESSES.AAVE_POOL_PROVIDER, BASE_ADDRESSES.UNISWAP_ROUTER],
+                chain: base,
             });
 
             // Wait for deployment
@@ -128,7 +137,7 @@ export function useFlashArb() {
         } finally {
             setIsDeploying(false);
         }
-    }, [walletClient, publicClient, address]);
+    }, [walletClient, publicClient, address, chainId, switchChainAsync]);
 
     // Execute a flash loan arbitrage
     const executeArbitrage = useCallback(async (
@@ -148,6 +157,11 @@ export function useFlashArb() {
 
         setIsExecuting(true);
         try {
+            // Ensure we're on Base chain
+            if (chainId !== base.id) {
+                await switchChainAsync({ chainId: base.id });
+            }
+
             // Encode params for the flash loan callback
             // minAmountOut = amount - 1% slippage
             const minAmountOut = (opportunity.amount * BigInt(99)) / BigInt(100);
@@ -163,6 +177,7 @@ export function useFlashArb() {
                 abi: FlashArbContract.abi,
                 functionName: 'requestFlashLoan',
                 args: [opportunity.asset, opportunity.amount, encodedParams],
+                chain: base,
             });
 
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -177,7 +192,7 @@ export function useFlashArb() {
         } finally {
             setIsExecuting(false);
         }
-    }, [walletClient, publicClient, contractAddress, isPaused, isOwner]);
+    }, [walletClient, publicClient, contractAddress, isPaused, isOwner, chainId, switchChainAsync]);
 
     // Withdraw profits
     const withdrawProfits = useCallback(async (
@@ -188,11 +203,17 @@ export function useFlashArb() {
         }
 
         try {
+            // Ensure we're on Base chain
+            if (chainId !== base.id) {
+                await switchChainAsync({ chainId: base.id });
+            }
+
             const hash = await walletClient.writeContract({
                 address: contractAddress,
                 abi: FlashArbContract.abi,
                 functionName: 'withdraw',
                 args: [token],
+                chain: base,
             });
 
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -205,7 +226,7 @@ export function useFlashArb() {
         } catch (err: any) {
             return { success: false, error: err.message || 'Withdrawal failed' };
         }
-    }, [walletClient, publicClient, contractAddress]);
+    }, [walletClient, publicClient, contractAddress, chainId, switchChainAsync]);
 
     // Toggle pause state
     const togglePause = useCallback(async (): Promise<ExecutionResult> => {
@@ -214,11 +235,17 @@ export function useFlashArb() {
         }
 
         try {
+            // Ensure we're on Base chain
+            if (chainId !== base.id) {
+                await switchChainAsync({ chainId: base.id });
+            }
+
             const hash = await walletClient.writeContract({
                 address: contractAddress,
                 abi: FlashArbContract.abi,
                 functionName: 'setPaused',
                 args: [!isPaused],
+                chain: base,
             });
 
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -234,7 +261,7 @@ export function useFlashArb() {
         } catch (err: any) {
             return { success: false, error: err.message || 'Toggle pause failed' };
         }
-    }, [walletClient, publicClient, contractAddress, isPaused]);
+    }, [walletClient, publicClient, contractAddress, isPaused, chainId, switchChainAsync]);
 
     // Add or remove an executor (bot wallet that can trigger trades but NOT withdraw)
     const setExecutor = useCallback(async (
@@ -250,11 +277,17 @@ export function useFlashArb() {
         }
 
         try {
+            // Ensure we're on Base chain
+            if (chainId !== base.id) {
+                await switchChainAsync({ chainId: base.id });
+            }
+
             const hash = await walletClient.writeContract({
                 address: contractAddress,
                 abi: FlashArbContract.abi,
                 functionName: 'setExecutor',
                 args: [executorAddress, allowed],
+                chain: base,
             });
 
             const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -267,7 +300,7 @@ export function useFlashArb() {
         } catch (err: any) {
             return { success: false, error: err.message || 'Set executor failed' };
         }
-    }, [walletClient, publicClient, contractAddress, isOwner]);
+    }, [walletClient, publicClient, contractAddress, isOwner, chainId, switchChainAsync]);
 
     // Check if an address is an executor
     const checkExecutor = useCallback(async (
