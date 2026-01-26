@@ -31,9 +31,11 @@ export interface ExecutionResult {
 
 export function useFlashArb() {
     const { address, isConnected, chainId } = useAccount();
-    // Explicitly use Base chain for all operations
+    // Get public client for Base (for reading contract state)
     const publicClient = usePublicClient({ chainId: base.id });
-    const { data: walletClient } = useWalletClient({ chainId: base.id });
+    // Get wallet client WITHOUT chainId - we'll switch chains before transactions
+    // If we specify chainId: base.id, it returns undefined when wallet is on different chain
+    const { data: walletClient } = useWalletClient();
     const { switchChainAsync } = useSwitchChain();
 
     const [contractAddress, setContractAddress] = useState<`0x${string}` | null>(null);
