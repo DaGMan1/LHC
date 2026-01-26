@@ -27,13 +27,16 @@ interface IntelContextType {
 
 const IntelContext = createContext<IntelContextType | undefined>(undefined)
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export function IntelProvider({ children }: { children: ReactNode }) {
     const [messages, setMessages] = useState<IntelMessage[]>([])
     const [latestPriority, setLatestPriority] = useState<IntelMessage | null>(null)
     const [botStates, setBotStates] = useState<BotState[]>([])
 
     useEffect(() => {
-        const eventSource = new EventSource('http://localhost:3001/api/intel')
+        console.log('[IntelProvider] Connecting to:', `${API_URL}/api/intel`);
+        const eventSource = new EventSource(`${API_URL}/api/intel`)
 
         eventSource.onmessage = (event) => {
             const payload = JSON.parse(event.data)

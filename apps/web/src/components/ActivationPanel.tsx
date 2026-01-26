@@ -6,6 +6,7 @@ import { formatEther } from 'viem';
 import { BASE_ADDRESSES } from '@/contracts/FlashArbABI';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+console.log('[ActivationPanel] API_URL:', API_URL);
 
 type ActivationStep = 'idle' | 'deploying' | 'authorizing' | 'configuring' | 'activating';
 
@@ -92,12 +93,17 @@ export function ActivationPanel() {
 
             // Step 2: Authorize bot if needed
             const botAddr = apiConfig?.botWalletAddress;
+            console.log('[Activation] Bot address:', botAddr);
+            console.log('[Activation] Contract address:', currentContractAddress);
             if (botAddr) {
                 // Pass contract address explicitly since state may not have updated
                 const isAuth = await checkExecutor(botAddr as `0x${string}`, currentContractAddress);
+                console.log('[Activation] Is bot already authorized?', isAuth);
                 if (!isAuth) {
                     setCurrentStep('authorizing');
+                    console.log('[Activation] Calling setExecutor with:', botAddr, true, currentContractAddress);
                     const result = await setExecutor(botAddr as `0x${string}`, true, currentContractAddress);
+                    console.log('[Activation] setExecutor result:', result);
                     if (!result.success) {
                         throw new Error(result.error || 'Failed to authorize bot');
                     }
