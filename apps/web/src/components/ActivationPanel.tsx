@@ -93,10 +93,11 @@ export function ActivationPanel() {
             // Step 2: Authorize bot if needed
             const botAddr = apiConfig?.botWalletAddress;
             if (botAddr) {
-                const isAuth = await checkExecutor(botAddr as `0x${string}`);
+                // Pass contract address explicitly since state may not have updated
+                const isAuth = await checkExecutor(botAddr as `0x${string}`, currentContractAddress);
                 if (!isAuth) {
                     setCurrentStep('authorizing');
-                    const result = await setExecutor(botAddr as `0x${string}`, true);
+                    const result = await setExecutor(botAddr as `0x${string}`, true, currentContractAddress);
                     if (!result.success) {
                         throw new Error(result.error || 'Failed to authorize bot');
                     }

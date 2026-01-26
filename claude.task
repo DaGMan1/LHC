@@ -1,0 +1,150 @@
+# LHC-1 Production Readiness Task
+
+## Status: READY TO TEST
+
+Everything is built and compiled. Just need to start the servers and open the browser.
+
+---
+
+## What Was Done
+
+### 1. Architecture Change: Browser-Based Trading
+- **Before**: Server held private keys and executed trades
+- **After**: All trading happens via MetaMask in your browser
+- **Why**: More secure, you never export your private key
+
+### 2. Created .env File
+Location: `/Users/garrymans/Documents/App Dev/LHC/LHC-1/.env`
+```
+PORT=3001
+BASE_RPC_URL=https://mainnet.base.org
+DRY_RUN=true
+MIN_PROFIT_USD=5
+MAX_GAS_PRICE_GWEI=0.1
+MAX_FLASH_LOAN_USD=10000
+FLASH_ARB_CONTRACT_ADDRESS=
+```
+
+### 3. New Web UI Components
+- **DeploymentPanel** (`apps/web/src/components/DeploymentPanel.tsx`)
+  - Deploy FlashArb contract from browser via MetaMask
+  - View contract status (paused, owner, balances)
+  - Withdraw profits button
+  - Pause/unpause contract
+
+- **TradingPanel** (`apps/web/src/components/TradingPanel.tsx`)
+  - Shows live arbitrage opportunities detected by API
+  - One-click execute via MetaMask
+  - Auto-trade toggle (for future)
+
+- **useFlashArb Hook** (`apps/web/src/hooks/useFlashArb.ts`)
+  - Contract deployment
+  - Trade execution
+  - State management
+
+### 4. Simplified API (Signal-Only Mode)
+- Removed server-side wallet/trading code
+- API now only:
+  - Scans blockchain for arbitrage opportunities
+  - Streams signals via SSE to web UI
+  - Manages bot start/stop
+
+### 5. Compilation Status
+- ✅ Contracts: Compiled (13 Solidity files)
+- ✅ API: Builds successfully
+- ✅ Web: Builds successfully
+
+---
+
+## How It Works Now
+
+```
+┌─────────────────────────────────────┐
+│  API Server (localhost:3001)        │
+│  - Scans for arbitrage opportunities│
+│  - Streams signals via SSE          │
+│  - No trading execution             │
+└──────────────┬──────────────────────┘
+               │ SSE stream
+               ▼
+┌─────────────────────────────────────┐
+│  Web UI (localhost:3000)            │
+│  - Displays opportunities           │
+│  - Connect MetaMask                 │
+│  - Deploy contract (one-time)       │
+│  - Execute trades via MetaMask      │
+└─────────────────────────────────────┘
+```
+
+---
+
+## To Start & Test
+
+### Step 1: Start the servers
+```bash
+cd /Users/garrymans/Documents/App\ Dev/LHC/LHC-1
+npm run dev
+```
+
+### Step 2: Open browser
+Go to: http://localhost:3000
+
+### Step 3: Connect MetaMask
+- Click "Connect Wallet" in top nav
+- Select MetaMask
+- Make sure you're on Base network
+
+### Step 4: Deploy Contract (one-time)
+- In the "Contract Setup" panel, click "Deploy FlashArb Contract"
+- Confirm in MetaMask (costs ~$5-10 gas)
+- Contract address auto-saves to browser
+
+### Step 5: Start Trading
+- Start the Flash Loan bot from the strategy cards
+- Watch for "ARB DETECTED" opportunities
+- Click "Execute" to trade (or enable auto-trade)
+
+---
+
+## Files Changed/Created
+
+### New Files
+- `.env` - Environment config
+- `apps/web/src/components/DeploymentPanel.tsx`
+- `apps/web/src/components/TradingPanel.tsx`
+- `apps/web/src/hooks/useFlashArb.ts`
+- `apps/web/src/contracts/FlashArbABI.ts`
+- `apps/web/src/contracts/FlashArbBytecode.json`
+
+### Modified Files
+- `apps/web/src/app/page.tsx` - Added new panels
+- `apps/api/src/index.ts` - Simplified to signal-only
+- `apps/api/src/viemClient.ts` - Read-only operations
+- `apps/api/src/bots/FlashLoanArb.ts` - Signal emission only
+- `apps/api/src/bots/BaseStrategy.ts` - Removed wallet deps
+- `apps/api/src/services/ArbitrageScanner.ts` - Added symbol fields
+
+### Deleted Files
+- `apps/api/src/contracts/` - Moved to browser
+
+---
+
+## What You Need
+
+1. **MetaMask wallet** with Base network configured
+2. **~$10-20 ETH on Base** for:
+   - Contract deployment (~$5-10)
+   - Gas for trades (~$1-2 each)
+3. **Browser** (Chrome recommended for MetaMask)
+
+---
+
+## Next Steps After Testing
+
+1. If everything works in dry-run mode, you can:
+   - Fund your MetaMask with real ETH on Base
+   - Deploy the contract for real
+   - Start executing actual arbitrage trades
+
+2. Monitor the Activity Feed for opportunities
+3. Each trade requires MetaMask confirmation (or enable auto-trade)

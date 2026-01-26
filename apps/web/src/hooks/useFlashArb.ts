@@ -45,15 +45,35 @@ export function useFlashArb() {
     const [isOwner, setIsOwner] = useState(false);
     const [contractBalance, setContractBalance] = useState<bigint>(BigInt(0));
 
-    // Load contract address from local storage
+    // Load contract address from local storage and recover pending deploys
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                setContractAddress(saved as `0x${string}`);
-            }
+        if (typeof window === 'undefined' || !publicClient) return;
+
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            setContractAddress(saved as `0x${string}`);
+            return;
         }
-    }, []);
+
+        // Check for pending deploy transaction
+        const pendingTx = localStorage.getItem('lhc1_pending_deploy_tx');
+        if (pendingTx) {
+            console.log('[FlashArb] Found pending deploy tx, trying to recover:', pendingTx);
+            publicClient.getTransactionReceipt({ hash: pendingTx as `0x${string}` })
+                .then((receipt) => {
+                    if (receipt && receipt.contractAddress) {
+                        console.log('[FlashArb] Recovered contract address:', receipt.contractAddress);
+                        localStorage.setItem(STORAGE_KEY, receipt.contractAddress);
+                        localStorage.removeItem('lhc1_pending_deploy_tx');
+                        setContractAddress(receipt.contractAddress);
+                        setIsOwner(true);
+                    }
+                })
+                .catch((err) => {
+                    console.log('[FlashArb] Could not recover pending tx:', err.message);
+                });
+        }
+    }, [publicClient]);
 
     // Check contract state when address changes
     useEffect(() => {
@@ -116,10 +136,35 @@ export function useFlashArb() {
                 chain: base,
             });
 
-            // Wait for deployment
-            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            console.log('[FlashArb] Deploy tx submitted:', hash);
 
-            if (receipt.status === 'reverted') {
+            // Wait for deployment with timeout and retries
+            let receipt;
+            let retries = 3;
+            while (retries > 0) {
+                try {
+                    receipt = await publicClient.waitForTransactionReceipt({
+                        hash,
+                        timeout: 60_000, // 60 seconds
+                    });
+                    break; // Success
+                } catch (err: any) {
+                    retries--;
+                    console.log(`[FlashArb] Receipt fetch failed, ${retries} retries left:`, err.message);
+                    if (retries === 0) {
+                        // Save tx hash for recovery
+                        localStorage.setItem('lhc1_pending_deploy_tx', hash);
+                        return {
+                            success: false,
+                            txHash: hash,
+                            error: `Tx sent but receipt failed. Hash: ${hash.slice(0, 10)}... Check BaseScan and refresh.`
+                        };
+                    }
+                    await new Promise(r => setTimeout(r, 3000)); // Wait 3s before retry
+                }
+            }
+
+            if (!receipt || receipt.status === 'reverted') {
                 return { success: false, error: 'Deployment reverted' };
             }
 
@@ -128,8 +173,11 @@ export function useFlashArb() {
                 return { success: false, error: 'No contract address in receipt' };
             }
 
+            console.log('[FlashArb] Contract deployed at:', deployed);
+
             // Save to local storage
             localStorage.setItem(STORAGE_KEY, deployed);
+            localStorage.removeItem('lhc1_pending_deploy_tx'); // Clear pending
             setContractAddress(deployed);
             setIsOwner(true);
 
@@ -266,17 +314,19 @@ export function useFlashArb() {
     }, [walletClient, publicClient, contractAddress, isPaused, chainId, switchChainAsync]);
 
     // Add or remove an executor (bot wallet that can trigger trades but NOT withdraw)
+    // Optional targetContract param allows passing address directly after deployment
     const setExecutor = useCallback(async (
         executorAddress: `0x${string}`,
-        allowed: boolean
+        allowed: boolean,
+        targetContract?: `0x${string}`
     ): Promise<ExecutionResult> => {
-        if (!walletClient || !publicClient || !contractAddress) {
+        const contract = targetContract || contractAddress;
+        if (!walletClient || !publicClient || !contract) {
             return { success: false, error: 'Contract not deployed or wallet not connected' };
         }
 
-        if (!isOwner) {
-            return { success: false, error: 'Only the owner can set executors' };
-        }
+        // Skip owner check if we just deployed (state may not have updated)
+        // The contract will enforce ownership anyway
 
         try {
             // Ensure we're on Base chain
@@ -285,7 +335,7 @@ export function useFlashArb() {
             }
 
             const hash = await walletClient.writeContract({
-                address: contractAddress,
+                address: contract,
                 abi: FlashArbContract.abi,
                 functionName: 'setExecutor',
                 args: [executorAddress, allowed],
@@ -302,17 +352,20 @@ export function useFlashArb() {
         } catch (err: any) {
             return { success: false, error: err.message || 'Set executor failed' };
         }
-    }, [walletClient, publicClient, contractAddress, isOwner, chainId, switchChainAsync]);
+    }, [walletClient, publicClient, contractAddress, chainId, switchChainAsync]);
 
     // Check if an address is an executor
+    // Optional targetContract param allows passing address directly after deployment
     const checkExecutor = useCallback(async (
-        executorAddress: `0x${string}`
+        executorAddress: `0x${string}`,
+        targetContract?: `0x${string}`
     ): Promise<boolean> => {
-        if (!publicClient || !contractAddress) return false;
+        const contract = targetContract || contractAddress;
+        if (!publicClient || !contract) return false;
 
         try {
             const result = await publicClient.readContract({
-                address: contractAddress,
+                address: contract,
                 abi: FlashArbContract.abi,
                 functionName: 'isExecutor',
                 args: [executorAddress],
