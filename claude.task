@@ -1,150 +1,246 @@
-# LHC-1 Production Readiness Task
+# LHC-1 Current Status
 
-## Status: READY TO TEST
-
-Everything is built and compiled. Just need to start the servers and open the browser.
+**Last Updated:** January 29, 2026 20:30 UTC
 
 ---
 
-## What Was Done
+## PRODUCTION STATUS: LIVE BUT NOT EXECUTING
 
-### 1. Architecture Change: Browser-Based Trading
-- **Before**: Server held private keys and executed trades
-- **After**: All trading happens via MetaMask in your browser
-- **Why**: More secure, you never export your private key
+### Current State
+- ✅ **Bot is RUNNING in LIVE MODE** (not dry run)
+- ✅ **Contract deployed:** `0x8df331d5f493fe065692f97a349cfe8c6941bcea`
+- ✅ **Bot wallet funded:** `0x273fdD310c80e95B92eA60Bf12A4391Ca2C3f640`
+- ✅ **Scanning blocks every 6 seconds** (currently block #41421243+)
+- ✅ **Finding profitable spreads:** 6-20 bps net on WETH/USDC
+- ❌ **NOT EXECUTING TRADES** due to bug in ArbitrageScanner
 
-### 2. Created .env File
-Location: `/Users/garrymans/Documents/App Dev/LHC/LHC-1/.env`
+### The Bug
+**File:** `apps/api/src/services/ArbitrageScanner.ts:119`
+
+```typescript
+if (!buyPoolDepth || !sellPoolDepth) {
+    return null; // ABORTING ALL OPPORTUNITIES
+}
 ```
+
+**Problem:** Pool depth fetch is failing for buy pools, causing scanner to abort ALL opportunities even when spreads are highly profitable.
+
+**Evidence from live feed:**
+- "Block 41421243 | WETH/USDC: 19.46 bps gross, 9.16 bps net"
+- "[SCANNER] Pool depth unavailable: buy=false, sell=true"
+- Result: No trade executed despite 9 bps net spread
+
+**Impact:** With a $2500 flash loan on 9 bps net spread:
+- Gross profit: $2500 * 0.000916 = $22.90
+- Aave fee (0.05%): $1.25
+- Gas (Base network): ~$0.02
+- **Net profit: ~$21.65** ← Should execute but doesn't
+
+---
+
+## WHAT NEEDS TO BE FIXED NOW
+
+### Priority 1: Fix Pool Depth Check
+**Options:**
+1. Make pool depth optional and use fixed flash loan sizes ($2500-$5000)
+2. Use fallback flash loan size when depth unavailable
+3. Fix the actual pool depth fetching logic
+
+**Recommended approach:** Use fixed flash loan sizes based on MIN/MAX env vars since flash loans don't require owned capital.
+
+### Priority 2: Increase Flash Loan Sizes
+Current logic uses 1% of pool liquidity as "safe size" - this is overly conservative for flash loans which execute atomically and revert on failure.
+
+**Suggested change:**
+- Default flash loan: $2500-$5000 USD in ETH
+- Scale up to $10K if spread is very high (>20 bps)
+- Gas on Base is pennies, not a limiting factor
+
+---
+
+## DEPLOYMENT INFORMATION
+
+### Production URLs
+- **Web Dashboard:** https://lhc-web-29418249188.us-central1.run.app
+- **API Server:** https://lhc-api-cky7mlzabq-uc.a.run.app
+- **Google Cloud Project:** lhc-terminal-alpha-1768620729
+
+### Environment Configuration (Production)
+```env
 PORT=3001
 BASE_RPC_URL=https://mainnet.base.org
-DRY_RUN=true
+BOT_PRIVATE_KEY=<in Secret Manager>
+FLASH_ARB_CONTRACT_ADDRESS=0x8df331d5f493fe065692f97a349cfe8c6941bcea
+DRY_RUN=false
 MIN_PROFIT_USD=5
 MAX_GAS_PRICE_GWEI=0.1
 MAX_FLASH_LOAN_USD=10000
-FLASH_ARB_CONTRACT_ADDRESS=
 ```
 
-### 3. New Web UI Components
-- **DeploymentPanel** (`apps/web/src/components/DeploymentPanel.tsx`)
-  - Deploy FlashArb contract from browser via MetaMask
-  - View contract status (paused, owner, balances)
-  - Withdraw profits button
-  - Pause/unpause contract
-
-- **TradingPanel** (`apps/web/src/components/TradingPanel.tsx`)
-  - Shows live arbitrage opportunities detected by API
-  - One-click execute via MetaMask
-  - Auto-trade toggle (for future)
-
-- **useFlashArb Hook** (`apps/web/src/hooks/useFlashArb.ts`)
-  - Contract deployment
-  - Trade execution
-  - State management
-
-### 4. Simplified API (Signal-Only Mode)
-- Removed server-side wallet/trading code
-- API now only:
-  - Scans blockchain for arbitrage opportunities
-  - Streams signals via SSE to web UI
-  - Manages bot start/stop
-
-### 5. Compilation Status
-- ✅ Contracts: Compiled (13 Solidity files)
-- ✅ API: Builds successfully
-- ✅ Web: Builds successfully
+### Contract Addresses (Base Mainnet)
+- **FlashArb Contract:** `0x8df331d5f493fe065692f97a349cfe8c6941bcea`
+- **Bot Wallet (Executor):** `0x273fdD310c80e95B92eA60Bf12A4391Ca2C3f640`
+- **Aave Pool Provider:** `0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D`
+- **Uniswap V3 Router:** `0x2626664c2603336E57B271c5C0b26F421741e481`
 
 ---
 
-## How It Works Now
+## TRADING STRATEGIES STATUS
 
-```
-┌─────────────────────────────────────┐
-│  API Server (localhost:3001)        │
-│  - Scans for arbitrage opportunities│
-│  - Streams signals via SSE          │
-│  - No trading execution             │
-└──────────────┬──────────────────────┘
-               │ SSE stream
-               ▼
-┌─────────────────────────────────────┐
-│  Web UI (localhost:3000)            │
-│  - Displays opportunities           │
-│  - Connect MetaMask                 │
-│  - Deploy contract (one-time)       │
-│  - Execute trades via MetaMask      │
-└─────────────────────────────────────┘
-```
+### 1. Flash Loan Arbitrage ⚠️ LIVE BUT BLOCKED
+- **Implementation:** 100% complete
+- **Status:** Running in live mode, scanning successfully
+- **Issue:** Pool depth check blocking execution
+- **Capital Allocated:** $2,500 (simulated - flash loans don't need capital)
+- **Target Pairs:** WETH/USDC, WETH/USDbC, WETH/DAI, cbETH/WETH
+- **Scan Interval:** Every ~6 seconds (per new Base block)
+
+### 2. CEX-Perp Delta 🔴 SIMULATION ONLY
+- **Implementation:** 30% complete (monitoring only)
+- **Status:** Idle - not actively developed
+- **Missing:** Hyperliquid SDK integration for order placement
+- **Capital Allocated:** $5,000 (not in use)
+
+### 3. Dynamic Grid Bot 🔴 SIMULATION ONLY
+- **Implementation:** 40% complete (grid logic only)
+- **Status:** Idle - not actively developed
+- **Missing:** DEX limit order integration or LP position management
+- **Capital Allocated:** $1,500 (not in use)
 
 ---
 
-## To Start & Test
+## GIT STATUS
 
-### Step 1: Start the servers
+### Uncommitted Changes
+- 19 files modified locally but not committed
+- 11 commits ahead of origin/main (not pushed)
+
+**Modified files include:**
+- Bot logic (FlashLoanArb.ts, CexPerpDelta.ts, GridBot.ts)
+- Core services (ArbitrageScanner.ts, PriceOracle.ts, GridManager.ts)
+- Web components (IntelProvider.tsx, ActivationPanel.tsx, etc.)
+- Contract artifacts (FlashArbABI.ts, FlashArbBytecode.json)
+
+**Recommendation:** Commit and push after fixing the pool depth bug.
+
+---
+
+## IMMEDIATE ACTION ITEMS
+
+1. **Fix ArbitrageScanner pool depth logic** (apps/api/src/services/ArbitrageScanner.ts:119)
+   - Remove strict pool depth requirement
+   - Use fixed flash loan sizes ($2500-$5000)
+   - Allow execution even when depth unavailable
+
+2. **Test in production**
+   - Deploy fixed scanner
+   - Monitor for actual trade execution
+   - Verify profits accumulate in contract
+
+3. **Monitor gas costs**
+   - Base network gas is cheap (~0.01 gwei)
+   - Flash loan transactions cost ~$0.02-0.05
+   - Don't over-optimize for gas
+
+4. **Update documentation**
+   - Commit current working state
+   - Document the fix in README
+   - Update deployment guide
+
+---
+
+## PROFITABILITY ANALYSIS
+
+### Current Market Conditions
+- **Spreads observed:** 6-20 bps net (after fees)
+- **Block time:** ~2 seconds on Base
+- **Scan frequency:** Every 6 seconds (every 3rd block)
+
+### Example Trade Math
+**Scenario:** 9 bps net spread, $5000 flash loan
+- Flash loan amount: ~1.47 ETH (at $3400/ETH)
+- Gross profit: $5000 * 0.0009 = $4.50
+- Aave fee (0.05%): $2.50
+- Gas: ~$0.02
+- **Net profit: $1.98** ← Below $5 threshold
+
+**Scenario:** 9 bps net spread, $10,000 flash loan
+- Flash loan amount: ~2.94 ETH
+- Gross profit: $10,000 * 0.0009 = $9.00
+- Aave fee (0.05%): $5.00
+- Gas: ~$0.02
+- **Net profit: $3.98** ← Still below $5
+
+**Scenario:** 20 bps net spread, $10,000 flash loan
+- Gross profit: $10,000 * 0.0020 = $20.00
+- Aave fee: $5.00
+- Gas: ~$0.02
+- **Net profit: $14.98** ✅ Above $5 threshold
+
+**Conclusion:** Need either:
+- Higher spreads (15-20+ bps)
+- Lower MIN_PROFIT_USD threshold (try $2-3)
+- Wait for more volatile market conditions
+
+---
+
+## NEXT STEPS
+
+### Short Term (Today)
+1. Fix pool depth bug in ArbitrageScanner
+2. Lower MIN_PROFIT_USD to $2 or $3
+3. Deploy and monitor for executions
+4. Verify first profitable trade
+
+### Medium Term (This Week)
+1. Optimize flash loan sizing strategy
+2. Add multi-hop arbitrage (3-pool routes)
+3. Monitor profitability and adjust thresholds
+4. Consider adding more trading pairs
+
+### Long Term (Future)
+1. Implement CEX-Perp Delta bot (requires Hyperliquid integration)
+2. Implement Grid Bot (requires LP position management)
+3. Add multi-chain support (Arbitrum, Optimism)
+4. Implement profit auto-compounding
+
+---
+
+## KEY FILES REFERENCE
+
+| Purpose | File Path |
+|---------|-----------|
+| **BUG LOCATION** | `apps/api/src/services/ArbitrageScanner.ts:119` |
+| Bot entry point | `apps/api/src/bots/FlashLoanArb.ts` |
+| Scanner logic | `apps/api/src/services/ArbitrageScanner.ts` |
+| Pool depth monitor | `apps/api/src/liquidity.ts` |
+| Price oracle | `apps/api/src/oracles/PriceOracle.ts` |
+| Runtime config | `apps/api/src/config/runtimeConfig.ts` |
+| Contract client | `apps/api/src/contracts/FlashArbClient.ts` |
+| API routes | `apps/api/src/index.ts` |
+| Smart contract | `contracts/contracts/FlashArb.sol` |
+| Web dashboard | `apps/web/src/app/page.tsx` |
+| Activation UI | `apps/web/src/components/ActivationPanel.tsx` |
+
+---
+
+## MONITORING
+
+### Live Feed
 ```bash
-cd /Users/garrymans/Documents/App\ Dev/LHC/LHC-1
-npm run dev
+curl -s "https://lhc-api-cky7mlzabq-uc.a.run.app/api/intel" --no-buffer
 ```
 
-### Step 2: Open browser
-Go to: http://localhost:3000
+### Bot Status
+```bash
+curl -s "https://lhc-api-cky7mlzabq-uc.a.run.app/api/bots" | jq
+```
 
-### Step 3: Connect MetaMask
-- Click "Connect Wallet" in top nav
-- Select MetaMask
-- Make sure you're on Base network
-
-### Step 4: Deploy Contract (one-time)
-- In the "Contract Setup" panel, click "Deploy FlashArb Contract"
-- Confirm in MetaMask (costs ~$5-10 gas)
-- Contract address auto-saves to browser
-
-### Step 5: Start Trading
-- Start the Flash Loan bot from the strategy cards
-- Watch for "ARB DETECTED" opportunities
-- Click "Execute" to trade (or enable auto-trade)
+### Config
+```bash
+curl -s "https://lhc-api-cky7mlzabq-uc.a.run.app/api/config" | jq
+```
 
 ---
 
-## Files Changed/Created
-
-### New Files
-- `.env` - Environment config
-- `apps/web/src/components/DeploymentPanel.tsx`
-- `apps/web/src/components/TradingPanel.tsx`
-- `apps/web/src/hooks/useFlashArb.ts`
-- `apps/web/src/contracts/FlashArbABI.ts`
-- `apps/web/src/contracts/FlashArbBytecode.json`
-
-### Modified Files
-- `apps/web/src/app/page.tsx` - Added new panels
-- `apps/api/src/index.ts` - Simplified to signal-only
-- `apps/api/src/viemClient.ts` - Read-only operations
-- `apps/api/src/bots/FlashLoanArb.ts` - Signal emission only
-- `apps/api/src/bots/BaseStrategy.ts` - Removed wallet deps
-- `apps/api/src/services/ArbitrageScanner.ts` - Added symbol fields
-
-### Deleted Files
-- `apps/api/src/contracts/` - Moved to browser
-
----
-
-## What You Need
-
-1. **MetaMask wallet** with Base network configured
-2. **~$10-20 ETH on Base** for:
-   - Contract deployment (~$5-10)
-   - Gas for trades (~$1-2 each)
-3. **Browser** (Chrome recommended for MetaMask)
-
----
-
-## Next Steps After Testing
-
-1. If everything works in dry-run mode, you can:
-   - Fund your MetaMask with real ETH on Base
-   - Deploy the contract for real
-   - Start executing actual arbitrage trades
-
-2. Monitor the Activity Feed for opportunities
-3. Each trade requires MetaMask confirmation (or enable auto-trade)
+**Status Summary:** Bot is live and scanning but NOT executing due to pool depth fetch bug. Fix is straightforward - make pool depth optional and use fixed flash loan sizes. Market conditions show 6-20 bps spreads which should be profitable with optimized parameters.

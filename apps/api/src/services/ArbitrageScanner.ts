@@ -1,14 +1,11 @@
 import { type Address, formatEther } from 'viem';
 import {
     priceOracle,
-    BASE_POOLS,
-    BASE_TOKENS,
-    type ArbitrageOpportunity as PriceOracleOpportunity,
+    SCAN_GROUPS,
 } from '../oracles/PriceOracle.js';
 import { liquidityMonitor } from '../liquidity.js';
 import {
     publicClient,
-    isGasPriceAcceptable,
     getGasPriceInfo,
 } from '../viemClient.js';
 import { intelEmitter } from '../intel.js';
@@ -17,7 +14,7 @@ import { intelEmitter } from '../intel.js';
 // CONFIGURATION
 // ============================================
 
-const MIN_PROFIT_USD = parseFloat(process.env.MIN_PROFIT_USD || '5');
+const MIN_PROFIT_USD = parseFloat(process.env.MIN_PROFIT_USD || '2');
 const MAX_FLASH_LOAN_USD = parseFloat(process.env.MAX_FLASH_LOAN_USD || '10000');
 
 // ============================================
@@ -43,6 +40,7 @@ export interface ArbitrageOpportunity {
     ethPriceUsd: number;
     isExecutable: boolean;
     reason?: string;
+    pairLabel?: string;
 }
 
 // ============================================
@@ -54,7 +52,7 @@ export class ArbitrageScanner {
     private scanCount: number = 0;
 
     /**
-     * Scan for arbitrage opportunities.
+     * Scan all configured pairs for arbitrage opportunities.
      */
     async scan(): Promise<ArbitrageOpportunity | null> {
         this.scanCount++;
@@ -77,60 +75,85 @@ export class ArbitrageScanner {
             return null;
         }
 
-        // Scan WETH/USDC pools for arbitrage
-        const pools = [
-            BASE_POOLS.WETH_USDC_500,
-            BASE_POOLS.WETH_USDC_3000,
-            BASE_POOLS.WETH_USDC_10000,
-        ];
+        // Scan ALL pairs across Uniswap V3 + Aerodrome
+        const allResults = await priceOracle.scanAllGroups();
 
-        const arbResult = await priceOracle.findArbitrageOpportunity(pools);
+        // Log each pair's result
+        for (const r of allResults) {
+            this.log(
+                `Block ${blockNumber} | ${r.pairLabel} (${r.poolCount} pools): ${r.spreadBps.toFixed(2)} bps gross, ${r.netSpreadBps.toFixed(2)} bps net`,
+                r.exists ? 'success' : 'info'
+            );
+        }
 
-        // Log scan result
-        this.log(
-            `Block ${blockNumber}: Spread ${arbResult.spreadBps.toFixed(2)} bps, Net ${arbResult.netSpreadBps.toFixed(2)} bps`,
-            arbResult.exists ? 'success' : 'info'
-        );
+        // Find the best opportunity
+        let bestResult = allResults[0];
+        for (const r of allResults) {
+            if (r.netSpreadBps > bestResult.netSpreadBps) bestResult = r;
+        }
 
-        if (!arbResult.exists || !arbResult.buyPool || !arbResult.sellPool) {
+        if (!bestResult.exists || !bestResult.buyPool || !bestResult.sellPool) {
             return null;
         }
 
-        // Get pool depths for safe sizing
-        const buyPoolDepth = await liquidityMonitor.getPoolDepth(arbResult.buyPool);
-        const sellPoolDepth = await liquidityMonitor.getPoolDepth(arbResult.sellPool);
+        // Find the matching scan group to get asset/target addresses
+        const group = SCAN_GROUPS.find(
+            (g) => `${g.asset}/${g.target}` === bestResult.pairLabel
+        );
+        if (!group) return null;
 
-        if (!buyPoolDepth || !sellPoolDepth) {
-            this.log('Could not fetch pool depths', 'warning');
-            return null;
+        // Get pool depths for sizing (optional)
+        let buyPoolDepth, sellPoolDepth;
+        try {
+            [buyPoolDepth, sellPoolDepth] = await Promise.all([
+                liquidityMonitor.getPoolDepth(bestResult.buyPool),
+                liquidityMonitor.getPoolDepth(bestResult.sellPool),
+            ]);
+        } catch (err) {
+            const errMsg = err instanceof Error ? err.message : 'Unknown error';
+            this.log(`Pool depth fetch failed: ${errMsg}`, 'warning');
         }
 
-        // Calculate safe trade size (1% of smaller pool liquidity)
-        const minLiquidity =
-            buyPoolDepth.liquidity < sellPoolDepth.liquidity
-                ? buyPoolDepth.liquidity
-                : sellPoolDepth.liquidity;
+        // Calculate flash loan size
+        let recommendedSize: bigint;
 
-        const safeSize = liquidityMonitor.getSafeTradeSize(
-            { ...buyPoolDepth, liquidity: minLiquidity },
-            1 // 1% max impact
-        );
+        if (buyPoolDepth && sellPoolDepth) {
+            // Use pool depth to size conservatively (10% of smaller pool)
+            const minLiquidity =
+                buyPoolDepth.liquidity < sellPoolDepth.liquidity
+                    ? buyPoolDepth.liquidity
+                    : sellPoolDepth.liquidity;
 
-        // Cap at MAX_FLASH_LOAN_USD
-        const maxSizeWei = BigInt(
-            Math.floor((MAX_FLASH_LOAN_USD / ethPriceUsd) * 1e18)
-        );
-        const recommendedSize = safeSize < maxSizeWei ? safeSize : maxSizeWei;
+            const safeSize = liquidityMonitor.getSafeTradeSize(
+                { ...buyPoolDepth, liquidity: minLiquidity },
+                10 // 10% instead of 1%
+            );
+
+            // Cap at MAX_FLASH_LOAN_USD
+            const maxSizeWei = BigInt(
+                Math.floor((MAX_FLASH_LOAN_USD / ethPriceUsd) * 1e18)
+            );
+            recommendedSize = safeSize < maxSizeWei ? safeSize : maxSizeWei;
+        } else {
+            // Pool depth unavailable - use fixed aggressive sizing
+            this.log(`Pool depth unavailable: buy=${!!buyPoolDepth}, sell=${!!sellPoolDepth} - using fallback sizing`, 'info');
+
+            // Use 70% of MAX_FLASH_LOAN_USD as fallback
+            const fallbackSizeUsd = MAX_FLASH_LOAN_USD * 0.7;
+            recommendedSize = BigInt(
+                Math.floor((fallbackSizeUsd / ethPriceUsd) * 1e18)
+            );
+        }
 
         // Calculate estimated profit in USD
         const flashAmountEth = Number(formatEther(recommendedSize));
         const estimatedProfitUsd =
-            flashAmountEth * ethPriceUsd * (arbResult.netSpreadBps / 10000);
+            flashAmountEth * ethPriceUsd * (bestResult.netSpreadBps / 10000);
 
         // Check if profit meets minimum threshold
         if (estimatedProfitUsd < MIN_PROFIT_USD) {
             this.log(
-                `Profit too small: $${estimatedProfitUsd.toFixed(2)} < $${MIN_PROFIT_USD}`,
+                `${bestResult.pairLabel} profit too small: $${estimatedProfitUsd.toFixed(2)} < $${MIN_PROFIT_USD}`,
                 'info'
             );
             return null;
@@ -141,26 +164,27 @@ export class ArbitrageScanner {
             id: `arb-${Date.now()}-${this.scanCount}`,
             timestamp: Date.now(),
             blockNumber,
-            asset: BASE_TOKENS.WETH,
-            assetSymbol: 'WETH',
-            targetToken: BASE_TOKENS.USDC,
-            targetSymbol: 'USDC',
-            buyPool: arbResult.buyPool,
-            sellPool: arbResult.sellPool,
-            buyPoolFee: arbResult.buyPoolFee,
-            sellPoolFee: arbResult.sellPoolFee,
-            spreadBps: arbResult.spreadBps,
-            netSpreadBps: arbResult.netSpreadBps,
+            asset: group.assetAddress,
+            assetSymbol: group.asset,
+            targetToken: group.targetAddress,
+            targetSymbol: group.target,
+            buyPool: bestResult.buyPool,
+            sellPool: bestResult.sellPool,
+            buyPoolFee: bestResult.buyPoolFee,
+            sellPoolFee: bestResult.sellPoolFee,
+            spreadBps: bestResult.spreadBps,
+            netSpreadBps: bestResult.netSpreadBps,
             estimatedProfitUsd,
             recommendedSize,
             ethPriceUsd,
             isExecutable: true,
+            pairLabel: bestResult.pairLabel,
         };
 
         this.lastOpportunity = opportunity;
 
         this.log(
-            `OPPORTUNITY FOUND! Spread: ${arbResult.netSpreadBps.toFixed(2)} bps, Est. Profit: $${estimatedProfitUsd.toFixed(2)}`,
+            `OPPORTUNITY: ${bestResult.pairLabel} spread ${bestResult.netSpreadBps.toFixed(2)} bps, Est. $${estimatedProfitUsd.toFixed(2)}`,
             'success',
             'high'
         );
@@ -168,16 +192,10 @@ export class ArbitrageScanner {
         return opportunity;
     }
 
-    /**
-     * Get the last detected opportunity.
-     */
     getLastOpportunity(): ArbitrageOpportunity | null {
         return this.lastOpportunity;
     }
 
-    /**
-     * Get scan statistics.
-     */
     getStats(): { scanCount: number; lastOpportunity: ArbitrageOpportunity | null } {
         return {
             scanCount: this.scanCount,
@@ -185,9 +203,6 @@ export class ArbitrageScanner {
         };
     }
 
-    /**
-     * Log a message to the intel stream.
-     */
     private log(
         msg: string,
         type: 'info' | 'success' | 'warning' | 'error' = 'info',

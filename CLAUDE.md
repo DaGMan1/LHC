@@ -213,12 +213,15 @@ TENDERLY_ACCESS_KEY=...
 
 ---
 
-## Current Status
+## Current Status (Jan 29, 2026)
 
-- **Bots:** Dry-run mode with simulated signals
-- **Intel:** Real-time SSE stream from API
-- **Contracts:** FlashArb.sol with executor role support
+- **Flash Loan Arb:** LIVE mode, scanning blocks, blocked by pool depth bug
+- **Contract:** Deployed at `0x8df331d5f493fe065692f97a349cfe8c6941bcea`
+- **Bot Wallet:** Funded at `0x273fdD310c80e95B92eA60Bf12A4391Ca2C3f640`
+- **Intel:** Real-time SSE stream showing 6-20 bps spreads
+- **Issue:** ArbitrageScanner.ts:119 blocking execution (pool depth unavailable)
 - **Deployment:** Live on Google Cloud Run (project: `lhc-terminal-alpha-1768620729`)
+- **Action Needed:** Fix pool depth check, lower MIN_PROFIT_USD to $2-3
 
 ---
 
@@ -236,6 +239,12 @@ TENDERLY_ACCESS_KEY=...
 **Bot Wallet (Executor):** `0x273fdD310c80e95B92eA60Bf12A4391Ca2C3f640`
 - Can trigger trades but CANNOT withdraw
 - Private key stored in Secret Manager as `lhc-bot-private-key`
+- Funded with ~$50 Base ETH for gas
+
+**Deployed FlashArb Contract:** `0x8df331d5f493fe065692f97a349cfe8c6941bcea`
+- Owner: User's MetaMask wallet
+- Authorized executor: Bot wallet
+- Status: Active and ready for autonomous trading
 
 ---
 
@@ -264,9 +273,15 @@ TENDERLY_ACCESS_KEY=...
 
 | Purpose | Path |
 |---------|------|
+| **BUG LOCATION** | `apps/api/src/services/ArbitrageScanner.ts:119` |
 | API entry | `apps/api/src/index.ts` |
 | Bot base class | `apps/api/src/bots/BaseStrategy.ts` |
 | Flash loan bot | `apps/api/src/bots/FlashLoanArb.ts` |
+| Arbitrage scanner | `apps/api/src/services/ArbitrageScanner.ts` |
+| Pool depth monitor | `apps/api/src/liquidity.ts` |
+| Price oracle | `apps/api/src/oracles/PriceOracle.ts` |
+| Runtime config | `apps/api/src/config/runtimeConfig.ts` |
+| Contract client | `apps/api/src/contracts/FlashArbClient.ts` |
 | Intel engine | `apps/api/src/intel.ts` |
 | Web page | `apps/web/src/app/page.tsx` |
 | Activation UI | `apps/web/src/components/ActivationPanel.tsx` |
@@ -277,3 +292,4 @@ TENDERLY_ACCESS_KEY=...
 | Wagmi config | `apps/web/src/config/wagmi.ts` |
 | FlashArb contract | `contracts/contracts/FlashArb.sol` |
 | Deploy script | `deploy.sh` |
+| Current status | `claude.task` |
