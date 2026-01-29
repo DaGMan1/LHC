@@ -186,7 +186,7 @@ export function TradingPanel() {
 
             {/* Gas estimate */}
             <div className="text-[10px] text-zinc-600 text-center">
-                Est. gas per trade: ~0.001 ETH ($2-5)
+                Est. gas per trade: ~$0.10 - $0.50 (Base L2)
             </div>
         </div>
     );

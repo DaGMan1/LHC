@@ -9,13 +9,26 @@ import { hyperliquidClient } from '../exchanges/HyperliquidClient.js';
 const MIN_DIVERGENCE_PERCENT = 0.5; // Minimum divergence to trigger (0.5%)
 const MIN_FUNDING_RATE = 0.0001; // Minimum funding rate (0.01% per 8h)
 
+/**
+ * CEX-Perp Delta Arbitrage Bot
+ *
+ * SIMULATION ONLY - Live trading not implemented.
+ * This bot monitors divergence between CEX spot prices and Hyperliquid perpetuals,
+ * identifies funding rate arbitrage opportunities, and simulates trades.
+ *
+ * To implement live trading:
+ * - Integrate Hyperliquid SDK for order placement
+ * - Add spot hedging via DEX or CEX API
+ * - Implement position monitoring and convergence detection
+ */
 export class CexPerpDelta extends BaseStrategy {
     private lastSpotPrice: number = 0;
     private lastPerpPrice: number = 0;
     private lastFundingRate: number = 0;
 
     constructor() {
-        super('cex-perp', 'CEX-Perp Delta', 5000);
+        // Note: This bot always runs in simulation mode - live trading not implemented
+        super('cex-perp', 'CEX-Perp Delta (Simulation)', 5000);
     }
 
     public async run(): Promise<void> {

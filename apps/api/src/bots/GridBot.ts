@@ -15,13 +15,26 @@ const DEFAULT_GRID_CONFIG: GridConfig = {
     asset: '0x4200000000000000000000000000000000000006', // WETH
 };
 
+/**
+ * Dynamic Grid Trading Bot
+ *
+ * SIMULATION ONLY - Live trading not implemented.
+ * This bot creates a grid of buy/sell levels around the current price and
+ * profits from price oscillations within the range.
+ *
+ * To implement live trading:
+ * - Integrate with DEX for order placement (limit orders)
+ * - Or manage Uniswap V3 LP positions for passive grid exposure
+ * - Add capital management and position tracking
+ */
 export class GridBot extends BaseStrategy {
     private gridManager: GridManager | null = null;
     private totalGridHits: number = 0;
     private lastState: GridState | null = null;
 
     constructor() {
-        super('grid-bot', 'Dynamic Grid Bot', 1500);
+        // Note: This bot always runs in simulation mode - live trading not implemented
+        super('grid-bot', 'Dynamic Grid (Simulation)', 1500);
     }
 
     public async run(): Promise<void> {

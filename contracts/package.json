@@ -11,7 +11,8 @@
     "deploy:local": "npx hardhat run scripts/deploy-flasharb.ts --network hardhat",
     "deploy:base-sepolia": "npx hardhat run scripts/deploy-flasharb.ts --network baseSepolia",
     "deploy:base": "npx hardhat run scripts/deploy-flasharb.ts --network base",
-    "verify": "npx hardhat verify --network base"
+    "verify": "npx hardhat verify --network base",
+    "export": "cp artifacts/contracts/FlashArb.sol/FlashArb.json ../apps/web/src/contracts/FlashArbBytecode.json"
   },
   "keywords": [],
   "author": "",

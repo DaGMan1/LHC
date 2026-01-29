@@ -102,11 +102,12 @@ export class GridManager {
             }
             // Sell level triggered when price rises above
             else if (level.type === 'sell' && currentPrice >= level.price) {
-                level.filled = true;
+                // Complete the sell - record profit, then reset for next buy
                 level.filledAt = Date.now();
-                level.type = 'buy'; // Reset to buy at this level
-                level.filled = false; // Ready for next cycle
-                triggered.push(level);
+                triggered.push({ ...level }); // Push copy with 'sell' type for tracking
+                // Reset to buy at this level for next cycle
+                level.type = 'buy';
+                level.filled = false;
             }
         }
 

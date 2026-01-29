@@ -11,7 +11,7 @@ import { isBotWalletConfigured } from '../viemClient.js';
 export class FlashLoanArb extends BaseStrategy {
     private executionInProgress: boolean = false;
     private consecutiveFailures: number = 0;
-    private maxConsecutiveFailures: number = 3;
+    private maxConsecutiveFailures: number = 10;
     private opportunitiesFound: number = 0;
     private tradesExecuted: number = 0;
     private successfulTrades: number = 0;

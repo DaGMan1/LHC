@@ -42,13 +42,30 @@ export function isBotWalletConfigured(): boolean {
 }
 
 /**
+ * Validate private key format.
+ * @returns true if valid, false otherwise
+ */
+function isValidPrivateKey(key: string): boolean {
+    // Remove 0x prefix if present
+    const cleanKey = key.startsWith('0x') ? key.slice(2) : key;
+    // Private key should be 64 hex characters
+    return /^[0-9a-fA-F]{64}$/.test(cleanKey);
+}
+
+/**
  * Get the bot account from the configured private key.
- * @throws Error if BOT_PRIVATE_KEY is not configured
+ * @throws Error if BOT_PRIVATE_KEY is not configured or invalid
  */
 export function getBotAccount(): Account {
     if (!BOT_PRIVATE_KEY) {
         throw new Error(
             'BOT_PRIVATE_KEY not configured. Set it in .env for autonomous trading.'
+        );
+    }
+
+    if (!isValidPrivateKey(BOT_PRIVATE_KEY)) {
+        throw new Error(
+            'BOT_PRIVATE_KEY is invalid. Must be 64 hex characters (with or without 0x prefix).'
         );
     }
 

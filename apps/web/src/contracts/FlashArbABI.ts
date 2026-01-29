@@ -88,8 +88,7 @@ export const FLASH_ARB_ABI = [
     },
 ] as const;
 
-// Base Mainnet addresses (verified on BaseScan)
-// Source: https://basescan.org/address/0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D
+// Base Mainnet addresses
 export const BASE_ADDRESSES = {
     AAVE_POOL_PROVIDER: '0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D' as `0x${string}`,
     UNISWAP_ROUTER: '0x2626664c2603336E57B271c5C0b26F421741e481' as `0x${string}`,

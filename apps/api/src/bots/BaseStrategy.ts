@@ -34,9 +34,9 @@ export abstract class BaseStrategy implements TradingStrategy {
         const modeText = this.dryRun ? '[DRY RUN]' : '[LIVE]';
         this.log(`${modeText} Neural link established. Bot operational.`, 'success');
 
-        // Run immediately, then every 10 seconds
+        // Run immediately, then every 6 seconds (Base produces blocks every 2s)
         this.run();
-        this.interval = setInterval(() => this.run(), 10000);
+        this.interval = setInterval(() => this.run(), 6000);
     }
 
     public stop(): void {

@@ -35,36 +35,60 @@ export function IntelProvider({ children }: { children: ReactNode }) {
     const [botStates, setBotStates] = useState<BotState[]>([])
 
     useEffect(() => {
-        console.log('[IntelProvider] Connecting to:', `${API_URL}/api/intel`);
-        const eventSource = new EventSource(`${API_URL}/api/intel`)
+        let eventSource: EventSource | null = null;
+        let reconnectTimeout: NodeJS.Timeout | null = null;
+        let isUnmounted = false;
 
-        eventSource.onmessage = (event) => {
-            const payload = JSON.parse(event.data)
+        const connect = () => {
+            if (isUnmounted) return;
 
-            if (payload.type === 'intel') {
-                const data: IntelMessage = payload.data
-                setMessages((prev) => [data, ...prev].slice(0, 50))
+            console.log('[IntelProvider] Connecting to:', `${API_URL}/api/intel`);
+            eventSource = new EventSource(`${API_URL}/api/intel`);
 
-                if (data.priority === 'high') {
-                    setLatestPriority(data)
-                    // Auto-clear priority message after 10 seconds to keep the terminal feeling fresh
-                    setTimeout(() => {
-                        setLatestPriority(prev => prev === data ? null : prev)
-                    }, 10000)
+            eventSource.onmessage = (event) => {
+                try {
+                    const payload = JSON.parse(event.data);
+
+                    if (payload.type === 'intel') {
+                        const data: IntelMessage = payload.data;
+                        setMessages((prev) => [data, ...prev].slice(0, 50));
+
+                        if (data.priority === 'high') {
+                            setLatestPriority(data);
+                            // Auto-clear priority message after 10 seconds
+                            setTimeout(() => {
+                                setLatestPriority((prev) => (prev === data ? null : prev));
+                            }, 10000);
+                        }
+                    } else if (payload.type === 'bots') {
+                        setBotStates(payload.data);
+                    }
+                } catch (err) {
+                    console.error('[IntelProvider] Failed to parse SSE message:', err);
                 }
-            } else if (payload.type === 'bots') {
-                setBotStates(payload.data)
-            }
-        }
+            };
 
-        eventSource.onerror = (err) => {
-            console.error('SSE Error:', err)
-            eventSource.close()
-        }
+            eventSource.onerror = (err) => {
+                console.error('[IntelProvider] SSE Error, reconnecting in 3s...', err);
+                eventSource?.close();
+                eventSource = null;
+
+                // Reconnect after delay if not unmounted
+                if (!isUnmounted) {
+                    reconnectTimeout = setTimeout(connect, 3000);
+                }
+            };
+        };
+
+        connect();
 
         return () => {
-            eventSource.close()
-        }
+            isUnmounted = true;
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+            eventSource?.close();
+        };
     }, [])
 
     return (

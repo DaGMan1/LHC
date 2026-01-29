@@ -6,7 +6,6 @@ import { formatEther } from 'viem';
 import { BASE_ADDRESSES } from '@/contracts/FlashArbABI';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-console.log('[ActivationPanel] API_URL:', API_URL);
 
 type ActivationStep = 'idle' | 'deploying' | 'authorizing' | 'configuring' | 'activating';
 

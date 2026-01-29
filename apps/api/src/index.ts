@@ -214,7 +214,7 @@ app.get('/api/system/status', async (req, res) => {
             if (isBotWalletConfigured()) {
                 botWalletAddress = getBotAddress();
             }
-        } catch {}
+        } catch { }
 
         res.json({
             status: 'ok',
@@ -256,7 +256,7 @@ app.get('/api/config', (req, res) => {
         if (isBotWalletConfigured()) {
             botWalletAddress = getBotAddress();
         }
-    } catch {}
+    } catch { }
 
     res.json({
         contractAddress: getContractAddress(),
@@ -424,5 +424,5 @@ app.listen(Number(port), '0.0.0.0', () => {
     console.log(`Health: http://0.0.0.0:${port}/health`);
     console.log(`Status: http://0.0.0.0:${port}/api/system/status`);
     console.log(`========================================`);
-    startMarketIntelEngine();
+    // startMarketIntelEngine(); // Disabled to ensure only REAL data is shown
 });

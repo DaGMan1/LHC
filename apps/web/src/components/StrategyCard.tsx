@@ -2,6 +2,8 @@
 
 import { useIntelContext } from './IntelProvider'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 interface StrategyProps {
     id: string
     title: string
@@ -20,7 +22,7 @@ export function StrategyCard({ id, title, description, icon }: StrategyProps) {
     const toggleBot = async () => {
         const action = isRunning ? 'stop' : 'start'
         try {
-            await fetch(`http://localhost:3001/api/bots/${id}/${action}`, { method: 'POST' })
+            await fetch(`${API_URL}/api/bots/${id}/${action}`, { method: 'POST' })
         } catch (err) {
             console.error(`Failed to ${action} bot:`, err)
         }

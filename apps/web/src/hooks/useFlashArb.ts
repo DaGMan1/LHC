@@ -49,30 +49,63 @@ export function useFlashArb() {
     useEffect(() => {
         if (typeof window === 'undefined' || !publicClient) return;
 
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            setContractAddress(saved as `0x${string}`);
-            return;
-        }
+        let isMounted = true;
 
-        // Check for pending deploy transaction
-        const pendingTx = localStorage.getItem('lhc1_pending_deploy_tx');
-        if (pendingTx) {
-            console.log('[FlashArb] Found pending deploy tx, trying to recover:', pendingTx);
-            publicClient.getTransactionReceipt({ hash: pendingTx as `0x${string}` })
-                .then((receipt) => {
-                    if (receipt && receipt.contractAddress) {
+        const loadContract = async () => {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                // Verify the saved contract is compatible (has setExecutor function)
+                try {
+                    const code = await publicClient.getCode({ address: saved as `0x${string}` });
+                    if (!code || code === '0x') {
+                        // Contract doesn't exist on-chain (wrong network or not deployed)
+                        console.warn('[FlashArb] Saved contract has no code on-chain, clearing');
+                        localStorage.removeItem(STORAGE_KEY);
+                        return;
+                    }
+                    // Try calling isExecutor to verify ABI compatibility
+                    await publicClient.readContract({
+                        address: saved as `0x${string}`,
+                        abi: FlashArbContract.abi,
+                        functionName: 'isExecutor',
+                        args: ['0x0000000000000000000000000000000000000001'],
+                    });
+                    // Contract is valid and compatible
+                    if (isMounted) setContractAddress(saved as `0x${string}`);
+                } catch (err: any) {
+                    console.warn('[FlashArb] Saved contract is incompatible (missing setExecutor), clearing:', err.message);
+                    localStorage.removeItem(STORAGE_KEY);
+                    // Don't set contractAddress - user will need to redeploy
+                }
+                return;
+            }
+
+            // Check for pending deploy transaction
+            const pendingTx = localStorage.getItem('lhc1_pending_deploy_tx');
+            if (pendingTx) {
+                console.log('[FlashArb] Found pending deploy tx, trying to recover:', pendingTx);
+                try {
+                    const receipt = await publicClient.getTransactionReceipt({
+                        hash: pendingTx as `0x${string}`
+                    });
+                    if (receipt && receipt.contractAddress && isMounted) {
                         console.log('[FlashArb] Recovered contract address:', receipt.contractAddress);
                         localStorage.setItem(STORAGE_KEY, receipt.contractAddress);
                         localStorage.removeItem('lhc1_pending_deploy_tx');
                         setContractAddress(receipt.contractAddress);
                         setIsOwner(true);
                     }
-                })
-                .catch((err) => {
+                } catch (err: any) {
                     console.log('[FlashArb] Could not recover pending tx:', err.message);
-                });
-        }
+                }
+            }
+        };
+
+        loadContract();
+
+        return () => {
+            isMounted = false;
+        };
     }, [publicClient]);
 
     // Check contract state when address changes
