@@ -115,35 +115,43 @@ export class ArbitrageScanner {
         }
 
         // Calculate flash loan size
+        // Strategy: Start with MAX size, scale up for great spreads, reduce only if pool too small
         let recommendedSize: bigint;
 
+        // Base size: Use MAX_FLASH_LOAN_USD
+        let targetSizeUsd = MAX_FLASH_LOAN_USD;
+
+        // SCALE UP for exceptional spreads (flash loans are free capital - maximize profit!)
+        if (bestResult.netSpreadBps > 15) {
+            targetSizeUsd = MAX_FLASH_LOAN_USD * 2; // $20K for >15 bps spreads
+            this.log(`Exceptional spread ${bestResult.netSpreadBps.toFixed(2)} bps - scaling to $${targetSizeUsd}`, 'info');
+        }
+
         if (buyPoolDepth && sellPoolDepth) {
-            // Use pool depth to size conservatively (10% of smaller pool)
+            // Check if pools can handle our target size
             const minLiquidity =
                 buyPoolDepth.liquidity < sellPoolDepth.liquidity
                     ? buyPoolDepth.liquidity
                     : sellPoolDepth.liquidity;
 
-            const safeSize = liquidityMonitor.getSafeTradeSize(
+            const poolMaxSize = liquidityMonitor.getSafeTradeSize(
                 { ...buyPoolDepth, liquidity: minLiquidity },
-                10 // 10% instead of 1%
+                20 // 20% of pool liquidity (aggressive but safe)
             );
 
-            // Cap at MAX_FLASH_LOAN_USD
-            const maxSizeWei = BigInt(
-                Math.floor((MAX_FLASH_LOAN_USD / ethPriceUsd) * 1e18)
-            );
-            recommendedSize = safeSize < maxSizeWei ? safeSize : maxSizeWei;
+            const poolMaxSizeUsd = Number(formatEther(poolMaxSize)) * ethPriceUsd;
+
+            // Only reduce size if pool is too small
+            if (poolMaxSizeUsd < targetSizeUsd) {
+                this.log(`Pool too small for $${targetSizeUsd} - reducing to $${poolMaxSizeUsd.toFixed(0)}`, 'info');
+                targetSizeUsd = poolMaxSizeUsd;
+            }
         } else {
-            // Pool depth unavailable - use fixed aggressive sizing
-            this.log(`Pool depth unavailable: buy=${!!buyPoolDepth}, sell=${!!sellPoolDepth} - using fallback sizing`, 'info');
-
-            // Use 70% of MAX_FLASH_LOAN_USD as fallback
-            const fallbackSizeUsd = MAX_FLASH_LOAN_USD * 0.7;
-            recommendedSize = BigInt(
-                Math.floor((fallbackSizeUsd / ethPriceUsd) * 1e18)
-            );
+            // Pool depth unavailable - still use target size (flash loan will revert if it fails)
+            this.log(`Pool depth unavailable: buy=${!!buyPoolDepth}, sell=${!!sellPoolDepth} - using $${targetSizeUsd} flash loan`, 'info');
         }
+
+        recommendedSize = BigInt(Math.floor((targetSizeUsd / ethPriceUsd) * 1e18));
 
         // Calculate estimated profit in USD
         const flashAmountEth = Number(formatEther(recommendedSize));

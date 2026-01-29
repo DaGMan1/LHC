@@ -34,11 +34,16 @@ jobs:
       run: |
         API_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/api:${{ github.sha }}"
 
-        # Build API
+        # Build API (async to avoid log streaming issues)
         gcloud builds submit . \
           --config cloudbuild-api.yaml \
           --substitutions=_IMAGE_NAME=$API_IMAGE \
-          --project ${{ env.PROJECT_ID }}
+          --project ${{ env.PROJECT_ID }} \
+          --async
+
+        # Wait for build to complete
+        echo "Waiting for build to complete..."
+        sleep 60
 
         # Deploy API
         gcloud run deploy lhc-api \
@@ -65,11 +70,16 @@ jobs:
       run: |
         WEB_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/web:${{ github.sha }}"
 
-        # Build Web
+        # Build Web (async to avoid log streaming issues)
         gcloud builds submit . \
           --config cloudbuild-web.yaml \
           --substitutions=_IMAGE_NAME=$WEB_IMAGE,_API_URL=${{ steps.api-url.outputs.url }} \
-          --project ${{ env.PROJECT_ID }}
+          --project ${{ env.PROJECT_ID }} \
+          --async
+
+        # Wait for build to complete
+        echo "Waiting for build to complete..."
+        sleep 90
 
         # Deploy Web
         gcloud run deploy lhc-web \
