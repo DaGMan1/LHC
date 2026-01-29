@@ -287,3 +287,4 @@ MIT
 ## Disclaimer
 
 This software is for educational purposes. Trading cryptocurrencies involves significant risk. Never trade with funds you cannot afford to lose. Always test with small amounts first.
+# Test deployment
