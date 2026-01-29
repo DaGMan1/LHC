@@ -1,0 +1,94 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: lhc-terminal-alpha-1768620729
+  REGION: us-central1
+  REPO_NAME: alpha-core
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+
+    - name: Configure Docker
+      run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+    - name: Build and Deploy API
+      run: |
+        API_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/api:${{ github.sha }}"
+
+        # Build API
+        gcloud builds submit . \
+          --config cloudbuild-api.yaml \
+          --substitutions=_IMAGE_NAME=$API_IMAGE \
+          --project ${{ env.PROJECT_ID }}
+
+        # Deploy API
+        gcloud run deploy lhc-api \
+          --image $API_IMAGE \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --project ${{ env.PROJECT_ID }} \
+          --port 3001 \
+          --memory 512Mi \
+          --cpu 1 \
+          --min-instances 1 \
+          --max-instances 3 \
+          --set-env-vars="NODE_ENV=production,BASE_RPC_URL=https://mainnet.base.org,DRY_RUN=false,MIN_PROFIT_USD=2,MAX_GAS_PRICE_GWEI=0.1,MAX_FLASH_LOAN_USD=10000,FLASH_ARB_CONTRACT_ADDRESS=0x8df331d5f493fe065692f97a349cfe8c6941bcea" \
+          --set-secrets="BOT_PRIVATE_KEY=lhc-bot-private-key:latest"
+
+    - name: Get API URL
+      id: api-url
+      run: |
+        API_URL=$(gcloud run services describe lhc-api --platform managed --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')
+        echo "url=$API_URL" >> $GITHUB_OUTPUT
+
+    - name: Build and Deploy Web
+      run: |
+        WEB_IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO_NAME }}/web:${{ github.sha }}"
+
+        # Build Web
+        gcloud builds submit . \
+          --config cloudbuild-web.yaml \
+          --substitutions=_IMAGE_NAME=$WEB_IMAGE,_API_URL=${{ steps.api-url.outputs.url }} \
+          --project ${{ env.PROJECT_ID }}
+
+        # Deploy Web
+        gcloud run deploy lhc-web \
+          --image $WEB_IMAGE \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --project ${{ env.PROJECT_ID }} \
+          --port 3000 \
+          --memory 512Mi \
+          --cpu 1 \
+          --min-instances 0 \
+          --max-instances 3 \
+          --set-env-vars="NODE_ENV=production"
+
+    - name: Output URLs
+      run: |
+        WEB_URL=$(gcloud run services describe lhc-web --platform managed --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')
+        echo "### Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Web Dashboard:** $WEB_URL" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Endpoint:** ${{ steps.api-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY

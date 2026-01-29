@@ -146,3 +146,4 @@ contracts/typechain-types/
 # Turbo
 .turbo/
 
+.gcp-service-account.json

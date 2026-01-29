@@ -102,7 +102,7 @@ gcloud run deploy lhc-api \
     --cpu 1 \
     --min-instances 1 \
     --max-instances 3 \
-    --set-env-vars="NODE_ENV=production,BASE_RPC_URL=https://mainnet.base.org,DRY_RUN=true,MIN_PROFIT_USD=5,MAX_GAS_PRICE_GWEI=0.1,MAX_FLASH_LOAN_USD=10000" \
+    --set-env-vars="NODE_ENV=production,BASE_RPC_URL=https://mainnet.base.org,DRY_RUN=false,MIN_PROFIT_USD=2,MAX_GAS_PRICE_GWEI=0.1,MAX_FLASH_LOAN_USD=10000,FLASH_ARB_CONTRACT_ADDRESS=0x8df331d5f493fe065692f97a349cfe8c6941bcea" \
     --set-secrets="BOT_PRIVATE_KEY=$SECRET_NAME:latest"
 
 # Get API URL - needed for web build
