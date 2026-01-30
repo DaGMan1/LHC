@@ -7,6 +7,7 @@ export interface IntelMessage {
     msg: string;
     type: 'info' | 'success' | 'warning' | 'error';
     priority: 'low' | 'high';
+    botId?: string; // Source bot ID (flash-loan, cex-perp, grid-bot, or undefined for system messages)
 }
 
 export interface BotState {

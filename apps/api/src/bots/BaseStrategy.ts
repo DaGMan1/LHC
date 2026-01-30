@@ -96,6 +96,7 @@ export abstract class BaseStrategy implements TradingStrategy {
             msg: `[${this.id.toUpperCase()}] ${msg}`,
             type,
             priority,
+            botId: this.id,
         });
     }
 }
