@@ -143,6 +143,13 @@ export const SCAN_GROUPS: ScanGroup[] = [
         aerodromePools: [],
         decimalAdjustment: 1,
     },
+    {
+        asset: 'USDC', assetAddress: BASE_TOKENS.USDC,
+        target: 'USDbC', targetAddress: BASE_TOKENS.USDbC,
+        uniV3Pools: [], // No Uniswap V3 pools found for this pair
+        aerodromePools: [AERODROME_POOLS.USDC_USDbC_STABLE],
+        decimalAdjustment: 1, // Both 6 decimals
+    },
 ];
 
 // ============================================

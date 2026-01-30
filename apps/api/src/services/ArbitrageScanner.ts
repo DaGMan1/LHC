@@ -14,7 +14,8 @@ import { intelEmitter } from '../intel.js';
 // CONFIGURATION
 // ============================================
 
-const MIN_PROFIT_USD = parseFloat(process.env.MIN_PROFIT_USD || '2');
+const MIN_PROFIT_USD = parseFloat(process.env.MIN_PROFIT_USD || '25');
+const MIN_NET_SPREAD_BPS = parseFloat(process.env.MIN_NET_SPREAD_BPS || '20');
 const MAX_FLASH_LOAN_USD = parseFloat(process.env.MAX_FLASH_LOAN_USD || '10000');
 
 // ============================================
@@ -152,6 +153,15 @@ export class ArbitrageScanner {
         }
 
         recommendedSize = BigInt(Math.floor((targetSizeUsd / ethPriceUsd) * 1e18));
+
+        // Check if spread meets minimum threshold
+        if (bestResult.netSpreadBps < MIN_NET_SPREAD_BPS) {
+            this.log(
+                `${bestResult.pairLabel} spread too small: ${bestResult.netSpreadBps.toFixed(2)} bps < ${MIN_NET_SPREAD_BPS} bps`,
+                'info'
+            );
+            return null;
+        }
 
         // Calculate estimated profit in USD
         const flashAmountEth = Number(formatEther(recommendedSize));
