@@ -43,7 +43,7 @@ jobs:
 
         # Wait for build to complete
         echo "Waiting for build to complete..."
-        sleep 60
+        sleep 120
 
         # Deploy API
         gcloud run deploy lhc-api \
@@ -79,7 +79,7 @@ jobs:
 
         # Wait for build to complete
         echo "Waiting for build to complete..."
-        sleep 90
+        sleep 150
 
         # Deploy Web
         gcloud run deploy lhc-web \
