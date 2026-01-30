@@ -15,7 +15,7 @@ import { intelEmitter } from '../intel.js';
 // ============================================
 
 const MIN_PROFIT_USD = parseFloat(process.env.MIN_PROFIT_USD || '25');
-const MIN_NET_SPREAD_BPS = parseFloat(process.env.MIN_NET_SPREAD_BPS || '20');
+const MIN_NET_SPREAD_BPS = parseFloat(process.env.MIN_NET_SPREAD_BPS || '16');
 const MAX_FLASH_LOAN_USD = parseFloat(process.env.MAX_FLASH_LOAN_USD || '10000');
 
 // ============================================
