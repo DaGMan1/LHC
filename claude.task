@@ -1,6 +1,6 @@
 # LHC-1 Current Status
 
-**Last Updated:** January 30, 2026 04:05 UTC
+**Last Updated:** January 30, 2026 05:30 UTC
 
 ---
 
@@ -109,11 +109,19 @@ MAX_FLASH_LOAN_USD=10000
 - Correctly rejecting (unprofitable after fees)
 - Will auto-execute when spreads widen >25 bps
 
-### 2. CEX-Perp Delta 🔴 SIMULATION ONLY
-- **Implementation:** 30% complete (monitoring only)
-- **Status:** Idle - not actively developed
-- **Missing:** Hyperliquid SDK integration for order placement
-- **Capital Allocated:** $5,000 (not in use)
+### 2. CEX-Perp Delta 🟡 READY FOR TESTING
+- **Implementation:** 75% complete (trading logic implemented)
+- **Status:** Built and ready for testing in DRY_RUN mode
+- **Completed:**
+  - Hyperliquid order placement via EIP-712 signatures
+  - Position monitoring and tracking
+  - Convergence detection and auto-closing
+  - Delta-neutral strategy framework
+- **Missing:**
+  - Spot hedge via Uniswap needs full implementation (placeholder only)
+  - Hyperliquid EIP-712 signature format needs production validation
+  - Testing with actual Hyperliquid API
+- **Capital Allocated:** $1,000 default (configurable via CEX_PERP_POSITION_SIZE)
 
 ### 3. Dynamic Grid Bot 🔴 SIMULATION ONLY
 - **Implementation:** 40% complete (grid logic only)
@@ -127,12 +135,22 @@ MAX_FLASH_LOAN_USD=10000
 
 ### Recent Commits (Jan 30, 2026)
 ```
+c50c0fd feat(cex-perp): implement live trading with Hyperliquid integration
+077f355 feat: lower spread threshold to 16 bps for more trades
 adc9374 feat(arb): raise profit thresholds + add stablecoin pair scanning
 39b433a feat: aggressive flash loan sizing + fix GitHub Actions log streaming
 329277d fix(core): pool depth fallback + multi-DEX scanning + lower profit threshold
-d3d3b62 feat: add GitHub Actions auto-deployment + grant service account permissions
-88a99b7 test: trigger GitHub Actions deployment
 ```
+
+**Latest Session (Jan 30, 2026 05:00-05:30 UTC):**
+1. ✅ Lowered flash arbitrage spread threshold from 20 bps to 16 bps
+2. ✅ Implemented CEX-Perp Delta live trading:
+   - Hyperliquid order placement with EIP-712 signatures
+   - Position monitoring and lifecycle management
+   - Convergence detection and auto-closing
+   - Delta-neutral strategy framework
+3. ✅ Added configuration variables for CEX-Perp Delta bot
+4. 🔄 **PENDING:** Deploy updated code to Cloud Run
 
 **Clean working directory** - All changes committed and pushed
 
